@@ -1,0 +1,30 @@
+{
+  "delivery_optimization": {
+    "registry": [
+      {
+        "hive": "HKEY_LOCAL_MACHINE",
+        "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization",
+        "value": "DODownloadMode",
+        "type": "dword",
+        "prev_exists": true,
+        "prev_value": 0,
+        "prev_type": 4
+      },
+      {
+        "hive": "HKEY_LOCAL_MACHINE",
+        "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeliveryOptimization\\Config",
+        "value": "DODownloadMode",
+        "type": "dword",
+        "prev_exists": true,
+        "prev_value": 0,
+        "prev_type": 4
+      }
+    ],
+    "services": [
+      {
+        "name": "DoSvc",
+        "prev_start": 3
+      }
+    ]
+  }
+}

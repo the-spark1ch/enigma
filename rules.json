@@ -1,0 +1,303 @@
+[
+  {
+    "id": "win_telemetry",
+    "category": "telemetry",
+    "severity": "critical",
+    "title": "Windows Diagnostic Data & Telemetry Pipeline",
+    "description": "Continuous capture of system diagnostics, typing behavior, and OS states dispatched to central telemetry endpoints.",
+    "impact": "Exfiltration of usage patterns, device configurations, and behavioral parameters to external servers.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "value": "AllowTelemetry", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "value": "DisableDeviceCensus", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection", "value": "DoNotShowFeedbackNotifications", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "win11_recall_ai",
+    "category": "telemetry",
+    "severity": "critical",
+    "title": "Windows 11 Recall & Background Screen Vectorization",
+    "description": "Systemic background desktop snapshots, optical character recognition (OCR), and semantic vector profiling of user sessions.",
+    "impact": "Unencrypted local indexing of credentials, financial portals, and sensitive documentation subject to exfiltration.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "value": "DisableAIDataAnalysis", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Policies\\Microsoft\\Windows\\WindowsAI", "value": "DisableAIDataAnalysis", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI", "value": "TurnOffRecall", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "windows_copilot",
+    "category": "telemetry",
+    "severity": "warning",
+    "title": "Windows Copilot Cloud Context & Semantic Stream",
+    "description": "Active window contents, task patterns, and contextual OS prompts relayed to external cloud artificial intelligence models.",
+    "impact": "Continuous leakage of real-time workspace metadata to remote processing infrastructures.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Policies\\Microsoft\\Windows\\WindowsCopilot", "value": "TurnOffWindowsCopilot", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsCopilot", "value": "TurnOffWindowsCopilot", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "inking_typing_personalization",
+    "category": "telemetry",
+    "severity": "critical",
+    "title": "Keystroke Samples & Handwriting Telemetry Harvest",
+    "description": "Customized input dictionaries, handwriting samples, and typing cadences synchronized with Microsoft cloud services.",
+    "impact": "Keylogging exposure risk and harvesting of biometric stylus handwriting artifacts.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\InputPersonalization", "value": "RestrictImplicitInkCollection", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\InputPersonalization", "value": "RestrictImplicitTextCollection", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Personalization\\Settings", "value": "AcceptedPrivacyPolicy", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\InputPersonalization", "value": "AllowInputPersonalization", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "tailored_experiences",
+    "category": "telemetry",
+    "severity": "warning",
+    "title": "Tailored Experiences & Diagnostic Profile Matching",
+    "description": "Operating system bridges telemetry metadata with user identities to serve targeted recommendations and contextual promotions.",
+    "impact": "Systemic behavioral fingerprinting and non-consensual promotional injection.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Policies\\Microsoft\\Windows\\CloudContent", "value": "DisableTailoredExperiencesWithDiagnosticData", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "value": "DisableTailoredExperiencesWithDiagnosticData", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Privacy", "value": "TailoredExperiencesWithDiagnosticDataEnabled", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "telemetry_tasks",
+    "category": "telemetry",
+    "severity": "critical",
+    "title": "Scheduled Telemetry Wake-up Tasks & CEIP Probes",
+    "description": "Automated background tasks designed to re-awaken disabled telemetry services on strict calendar schedules.",
+    "impact": "Recurring hardware audits and app inventories executed without active user consent.",
+    "status": "vulnerable",
+    "tasks": [
+      "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
+      "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
+      "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser",
+      "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater"
+    ]
+  },
+  {
+    "id": "ad_tracking_id",
+    "category": "telemetry",
+    "severity": "warning",
+    "title": "Universal Advertising Identifier (Advertising ID)",
+    "description": "Static advertising GUID assigned to the local account for cross-application behavioral tracking and target profiling.",
+    "impact": "Persistent cross-software tracking and commercial profiling.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo", "value": "Enabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\AdvertisingInfo", "value": "DisabledByGroupPolicy", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "cortana_search_share",
+    "category": "telemetry",
+    "severity": "low",
+    "title": "Start Menu Search Exfiltration & Bing Cloud Query Relay",
+    "description": "Local file system and application search queries routed across internet pipes to remote search servers.",
+    "impact": "Accidental exposure of confidential filenames, queries, and phrases over public networks.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Search", "value": "BingSearchEnabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search", "value": "ConnectedSearchUseWeb", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "Software\\Policies\\Microsoft\\Windows\\Windows Search", "value": "DisableWebSearch", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "edge_telemetry",
+    "category": "telemetry",
+    "severity": "warning",
+    "title": "Microsoft Edge Background Daemon & Diagnostic Probes",
+    "description": "Persistent browser daemons active post-shutdown, dispatching browsing metrics and diagnostic memory telemetry.",
+    "impact": "Unnecessary background memory consumption and persistent tracking of browsing activity.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Edge", "value": "MetricsReportingEnabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Edge", "value": "SendSiteInfoToImproveServices", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Edge", "value": "StartupBoostEnabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Edge", "value": "BackgroundModeEnabled", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "delivery_optimization",
+    "category": "network",
+    "severity": "warning",
+    "title": "P2P Update Seeding Relay (Delivery Optimization / WUDO)",
+    "description": "Local disk and upstream internet bandwidth recruited to seed updates across LAN and internet peers.",
+    "impact": "Unregulated network bandwidth consumption and external visibility of active machine presence.",
+    "status": "vulnerable",
+    "services": ["DoSvc"],
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization", "value": "DODownloadMode", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DeliveryOptimization\\Config", "value": "DODownloadMode", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "llmnr_netbios",
+    "category": "network",
+    "severity": "critical",
+    "title": "Legacy Name Resolution Protocols (LLMNR & NetBIOS)",
+    "description": "Multicast and broadcast protocol fallback broadcasting NetNTLM password challenge responses across local subnets.",
+    "impact": "Susceptibility to local credential theft, relay attacks, and network eavesdropping.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "Software\\Policies\\Microsoft\\Windows NT\\DNSClient", "value": "EnableMulticast", "type": "dword", "recommended": 0}
+    ],
+    "powershell_actions": [
+      "Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled } | ForEach-Object { $_.SetTcpipNetbios(2) }"
+    ],
+    "powershell_revert_actions": [
+      "Get-CimInstance Win32_NetworkAdapterConfiguration | Where-Object { $_.IPEnabled } | ForEach-Object { $_.SetTcpipNetbios(0) }"
+    ]
+  },
+  {
+    "id": "dns_encryption",
+    "category": "network",
+    "severity": "warning",
+    "title": "Cleartext DNS Inquiries (Enforce DNS-over-HTTPS)",
+    "description": "Plaintext domain lookup queries transmitted to ISP gateways without transport layer encryption.",
+    "impact": "Local gateway eavesdropping and wholesale DNS browsing history profiling by network providers.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters", "value": "EnableAutoDoh", "type": "dword", "recommended": 2}
+    ]
+  },
+  {
+    "id": "wifi_sense",
+    "category": "network",
+    "severity": "warning",
+    "title": "Wi-Fi Sense & Automatic Hotspot Reconnection",
+    "description": "Automatic credential synchronization and autonomous connection to untrusted open wireless networks.",
+    "impact": "Rogue hotspot interception and unauthorized broadcast of Wi-Fi profile parameters.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Microsoft\\PolicyManager\\default\\WiFi\\AllowWiFiHotSpotReporting", "value": "value", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Microsoft\\PolicyManager\\default\\WiFi\\AllowAutoConnectToWiFiSenseHotspots", "value": "value", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Microsoft\\WcmSvc\\wifinetworkmanager\\config", "value": "AutoConnectAllowedOEM", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "diagtrack_service",
+    "category": "services",
+    "severity": "critical",
+    "title": "Connected User Experiences & Diagnostic Daemons (DiagTrack)",
+    "description": "Primary low-level telemetry daemon collecting kernel crash dumps, device sensors, and software executions.",
+    "impact": "Continuous background resource utilization and real-time telemetry streaming.",
+    "status": "vulnerable",
+    "services": ["DiagTrack", "dmwappushservice", "diagnosticshub.standardcollector.service"]
+  },
+  {
+    "id": "windows_error_reporting",
+    "category": "services",
+    "severity": "warning",
+    "title": "Windows Error Reporting & Crash Dump Exfiltration",
+    "description": "Application crashes trigger full memory stack dumps submitted to remote servers without data sanitization.",
+    "impact": "Unintentional transmission of decrypted memory tokens, passwords, and private data in crash dumps.",
+    "status": "vulnerable",
+    "services": ["WerSvc"],
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting", "value": "Disabled", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting", "value": "DoNotSendAdditionalData", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "cloud_clipboard",
+    "category": "permissions",
+    "severity": "critical",
+    "title": "Cloud Clipboard & Cross-Device History Sync",
+    "description": "System copy-paste buffer continuously synchronized with Microsoft cloud infrastructure.",
+    "impact": "High risk of credential, OTP, and confidential token exposure across external cloud sync nodes.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Clipboard", "value": "EnableClipboardHistory", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "value": "AllowClipboardHistory", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "value": "AllowCrossDeviceClipboard", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "activity_history",
+    "category": "permissions",
+    "severity": "warning",
+    "title": "User Timeline & Activity History Telemetry",
+    "description": "Compiles exhaustive logs of launched applications, opened files, and browsed web paths into cloud databases.",
+    "impact": "Permanent chronological digital footprint stored locally and in account telemetry.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "value": "EnableActivityFeed", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "value": "PublishUserActivities", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\System", "value": "UploadUserActivities", "type": "dword", "recommended": 0}
+    ]
+  },
+  {
+    "id": "location_tracking",
+    "category": "permissions",
+    "severity": "warning",
+    "title": "Geolocation Services & Sensor Coordinates",
+    "description": "Hardware positioning sensors relay physical latitude and longitude coordinates to background subsystems.",
+    "impact": "Continuous physical location harvesting and historical geodata tracking.",
+    "status": "vulnerable",
+    "services": ["lfsvc"],
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "Software\\Policies\\Microsoft\\Windows\\LocationAndSensors", "value": "DisableLocation", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "Software\\Policies\\Microsoft\\Windows\\LocationAndSensors", "value": "DisableLocationScripting", "type": "dword", "recommended": 1}
+    ]
+  },
+  {
+    "id": "app_diagnostic_access",
+    "category": "permissions",
+    "severity": "critical",
+    "title": "Universal App Diagnostic Data Interception",
+    "description": "Permits sandboxed store applications to query telemetry logs and status indicators from other active processes.",
+    "impact": "Cross-process surveillance and unauthorized execution profiling.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\AppPrivacy", "value": "LetAppsGetDiagnosticInfo", "type": "dword", "recommended": 2}
+    ]
+  },
+  {
+    "id": "recent_jumplists",
+    "category": "artifacts",
+    "severity": "low",
+    "title": "Recent Documents & Jump Lists Residual Artifacts",
+    "description": "Windows maintains unencrypted records and shortcuts of recently opened confidential documents and folders.",
+    "impact": "Local forensic recovery of confidential user workflow artifacts.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", "value": "NoRecentDocsHistory", "type": "dword", "recommended": 1}
+    ],
+    "directory_checks": [
+      {
+        "path": "%APPDATA%\\Microsoft\\Windows\\Recent",
+        "max_files": 2
+      }
+    ],
+    "directory_cleanups": [
+      "%APPDATA%\\Microsoft\\Windows\\Recent",
+      "%APPDATA%\\Microsoft\\Windows\\Recent\\AutomaticDestinations",
+      "%APPDATA%\\Microsoft\\Windows\\Recent\\CustomDestinations"
+    ]
+  },
+  {
+    "id": "start_content_delivery",
+    "category": "artifacts",
+    "severity": "low",
+    "title": "Cloud Content Delivery & Silent App Deployment",
+    "description": "Automated background download of sponsored applications, Start suggestions, and lock screen promotions.",
+    "impact": "Silent software payload installations and unapproved disk space consumption.",
+    "status": "vulnerable",
+    "registry_entries": [
+      {"hive": "HKEY_LOCAL_MACHINE", "key": "SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent", "value": "DisableWindowsConsumerFeatures", "type": "dword", "recommended": 1},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "value": "SystemPaneSuggestionsEnabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "value": "SubscribedContent-338388Enabled", "type": "dword", "recommended": 0},
+      {"hive": "HKEY_CURRENT_USER", "key": "Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager", "value": "SubscribedContent-338389Enabled", "type": "dword", "recommended": 0}
+    ]
+  }
+]

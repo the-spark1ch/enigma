@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline';">
+    <title>Enigma</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-wrapper">
+        <header class="header">
+            <div class="brand-box">
+                <div class="brand-title">
+                    <span class="brand-name">ENIGMA</span>
+                    <span class="badge-tag mono">ZERO EXPOSURE</span>
+                </div>
+                <div class="brand-sub">Autonomous System Hardening & Telemetry Shield</div>
+            </div>
+
+            <div class="header-actions">
+                <div id="system-badge" class="info-badge mono">
+                    <span id="os-platform">Detecting node...</span>
+                </div>
+
+                <div id="admin-badge" class="admin-badge mono hidden">
+                    <span class="status-indicator"></span>
+                    <span>ELEVATED</span>
+                </div>
+
+                <button id="btn-elevate" onclick="elevatePrivileges()" class="btn-elevate hidden">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="3" ry="3"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <span>Elevate Privilege</span>
+                </button>
+
+                <button id="btn-scan" onclick="triggerScan()" class="btn-scan">
+                    <svg id="scan-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                    </svg>
+                    <span>Run Full Audit</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="hero-section">
+            <div id="status-hero" class="hero-card">
+                <div id="hero-glow-container" class="glow-container theme-idle">
+                    <div class="glow-orb glow-orb-1"></div>
+                    <div class="glow-orb glow-orb-2"></div>
+                    <div class="glow-orb glow-orb-3"></div>
+                </div>
+
+                <div class="hero-content">
+                    <div id="hero-icon-box" class="hero-icon-box idle">
+                        <svg id="hero-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polygon points="10 8 16 12 10 16 10 8"/>
+                        </svg>
+                    </div>
+                    <div id="hero-title" class="hero-title">Audit Required</div>
+                    <div id="hero-desc" class="hero-desc">
+                        Trigger a complete scan to inspect system telemetry conduits, artificial intelligence indexing, and network leakage surfaces.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="toolbar">
+            <div class="filter-group">
+                <button onclick="filterCategory('all')" id="tab-all" class="filter-btn active">All Vectors</button>
+                <button onclick="filterCategory('telemetry')" id="tab-telemetry" class="filter-btn">Telemetry & AI</button>
+                <button onclick="filterCategory('network')" id="tab-network" class="filter-btn">Network & P2P</button>
+                <button onclick="filterCategory('permissions')" id="tab-permissions" class="filter-btn">Permissions</button>
+                <button onclick="filterCategory('services')" id="tab-services" class="filter-btn">Services</button>
+                <button onclick="filterCategory('artifacts')" id="tab-artifacts" class="filter-btn">Residual Tracks</button>
+            </div>
+
+            <div class="action-group">
+                <button onclick="selectAllVulnerable()" class="btn-secondary">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                    <span>Select All Vulnerable</span>
+                </button>
+
+                <button onclick="fixSelected()" id="btn-fix-selected" disabled class="btn-primary">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <span>Remediate Selected</span>
+                </button>
+
+                <button onclick="toggleConsole()" class="btn-icon" title="Operation Console">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="4 17 10 11 4 5"/>
+                        <line x1="12" y1="19" x2="20" y2="19"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <main class="issues-container" id="issues-container">
+            <div id="initial-state" class="placeholder-card">
+                <p>System posture vectors will populate here upon running an audit.</p>
+            </div>
+        </main>
+
+        <div id="console-overlay" class="console-overlay">
+            <div id="audit-console" class="console-panel mono">
+                <div class="console-header">
+                    <div class="console-title">
+                        <span class="status-indicator"></span>
+                        <span>ENIGMA AUDIT CONSOLE</span>
+                    </div>
+                    <div class="console-controls">
+                        <button onclick="clearConsole()" class="console-btn">Clear</button>
+                        <button onclick="toggleConsole()" class="console-close">✕</button>
+                    </div>
+                </div>
+                <div id="console-output" class="console-output">
+                    <div class="log-entry">
+                        <span class="log-time">[00:00:00]</span>
+                        <span class="log-msg">Enigma security subsystem initialized and standing by.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
