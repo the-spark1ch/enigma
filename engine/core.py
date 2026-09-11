@@ -10,6 +10,15 @@ from typing import Dict, List, Any, Optional
 
 IS_WINDOWS = platform.system() == "Windows"
 
+def get_resource_path(filename: str) -> str:
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidate = os.path.join(base_dir, filename)
+    if os.path.exists(candidate):
+        return candidate
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
 def is_admin() -> bool:
     if IS_WINDOWS:
         try:
@@ -58,8 +67,7 @@ class PrivacyEngineAPI:
         self.backups: Dict[str, Any] = self._load_backups()
 
     def _load_rules(self) -> List[Dict[str, Any]]:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        rules_file = os.path.join(current_dir, "rules.json")
+        rules_file = get_resource_path("rules.json")
         if os.path.exists(rules_file):
             try:
                 with open(rules_file, "r", encoding="utf-8") as f:
@@ -69,7 +77,7 @@ class PrivacyEngineAPI:
         return []
 
     def _load_backups(self) -> Dict[str, Any]:
-        local_fallback = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backup_state.json")
+        local_fallback = get_resource_path("backup_state.json")
         if not os.path.exists(self.backup_path) and os.path.exists(local_fallback):
             try:
                 shutil.copy2(local_fallback, self.backup_path)
