@@ -10,13 +10,13 @@ except ImportError:
 
 from engine import PrivacyEngineAPI
 
-def get_resource_path(filename: str) -> str:
+def get_resource_path(relative_path: str) -> str:
     if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
 
 def main():
-    html_file = get_resource_path("index.html")
+    html_file = get_resource_path(os.path.join("web", "index.html"))
     api = PrivacyEngineAPI()
 
     window = webview.create_window(
