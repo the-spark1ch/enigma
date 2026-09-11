@@ -8,12 +8,15 @@ except ImportError:
     print("Install it using: pip install pywebview")
     sys.exit(1)
 
-from core import PrivacyEngineAPI
+from engine import PrivacyEngineAPI
+
+def get_resource_path(filename: str) -> str:
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
 
 def main():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    html_file = os.path.join(base_dir, "index.html")
-
+    html_file = get_resource_path("index.html")
     api = PrivacyEngineAPI()
 
     window = webview.create_window(
