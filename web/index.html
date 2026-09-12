@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' 'unsafe-inline';">
     <title>Enigma</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-wrapper">
+    <div class="app-wrapper" id="app-wrapper">
         <header class="header">
             <div class="brand-box">
                 <div class="brand-title">
@@ -22,9 +19,21 @@
             </div>
 
             <div class="header-actions">
-                <div id="system-badge" class="info-badge mono">
+                <button id="btn-profile" onclick="openProfileModal()" class="btn-profile mono">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <span id="profile-btn-label">PROFILE: BALANCED</span>
+                </button>
+
+                <button id="btn-system" onclick="openSystemModal()" class="btn-profile mono">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                        <line x1="8" y1="21" x2="16" y2="21"/>
+                        <line x1="12" y1="17" x2="12" y2="21"/>
+                    </svg>
                     <span id="os-platform">Detecting node...</span>
-                </div>
+                </button>
 
                 <div id="admin-badge" class="admin-badge mono hidden">
                     <span class="status-indicator"></span>
@@ -87,7 +96,7 @@
                         <polyline points="9 11 12 14 22 4"/>
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                     </svg>
-                    <span>Select All Vulnerable</span>
+                    <span>Select Profile Vectors</span>
                 </button>
 
                 <button onclick="fixSelected()" id="btn-fix-selected" disabled class="btn-primary">
@@ -111,6 +120,115 @@
                 <p>System posture vectors will populate here upon running an audit.</p>
             </div>
         </main>
+
+        <div id="profile-modal-overlay" class="modal-overlay">
+            <div class="profile-modal">
+                <div class="modal-header">
+                    <div class="modal-title-box">
+                        <div class="modal-badge mono">PROFILE CALIBRATION</div>
+                        <div class="modal-title">Select Security Baseline</div>
+                        <div class="modal-subtitle">Choose an operational profile to calibrate system exposure rules and telemetry mitigation.</div>
+                    </div>
+                    <button onclick="closeProfileModal()" class="modal-close-btn" title="Close">✕</button>
+                </div>
+
+                <div class="profile-cards-grid">
+                    <div class="profile-card" data-profile="balanced" onclick="setModalSelectedProfile('balanced')">
+                        <div class="profile-card-header">
+                            <div class="profile-radio-circle">
+                                <div class="profile-radio-dot"></div>
+                            </div>
+                            <div class="profile-tag tag-balanced mono">RECOMMENDED</div>
+                        </div>
+                        <div class="profile-name">Balanced Baseline</div>
+                        <div class="profile-desc">
+                            Neutralizes diagnostic pipelines, advertisement GUIDs, keystroke telemetry, and background Edge probes without breaking network printing, Wi-Fi, or system services.
+                        </div>
+                        <div class="profile-features mono">
+                            <span>11 Safe Vectors</span>
+                            <span>Zero LAN / App Impact</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-card" data-profile="maximum" onclick="setModalSelectedProfile('maximum')">
+                        <div class="profile-card-header">
+                            <div class="profile-radio-circle">
+                                <div class="profile-radio-dot"></div>
+                            </div>
+                            <div class="profile-tag tag-maximum mono">MAX HARDENING</div>
+                        </div>
+                        <div class="profile-name">Maximum Isolation</div>
+                        <div class="profile-desc">
+                            Full air-gap style containment. Neutralizes Windows Recall AI, Copilot streams, NetBIOS/LLMNR protocols, Delivery Optimization P2P, location sensors, and crash dumps.
+                        </div>
+                        <div class="profile-features mono">
+                            <span>All 21 Vectors</span>
+                            <span>High Security Stance</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-card" data-profile="custom" onclick="setModalSelectedProfile('custom')">
+                        <div class="profile-card-header">
+                            <div class="profile-radio-circle">
+                                <div class="profile-radio-dot"></div>
+                            </div>
+                            <div class="profile-tag tag-custom mono">MANUAL AUDIT</div>
+                        </div>
+                        <div class="profile-name">Custom Architecture</div>
+                        <div class="profile-desc">
+                            Granular administrator configuration. No automated presets applied—inspect the audit breakdown and select individual remediation vectors manually.
+                        </div>
+                        <div class="profile-features mono">
+                            <span>User Discretion</span>
+                            <span>Zero Auto-Selection</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <label class="remember-checkbox-label" for="remember-profile-check">
+                        <input type="checkbox" id="remember-profile-check" class="remember-checkbox">
+                        <span class="custom-checkbox-ui">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </span>
+                        <span>Remember profile and do not prompt on startup</span>
+                    </label>
+
+                    <button onclick="applyProfileFromModal()" class="btn-primary btn-modal-apply">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        </svg>
+                        <span>Apply Security Baseline</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="system-modal-overlay" class="modal-overlay">
+            <div class="system-modal">
+                <div class="modal-header">
+                    <div class="modal-title-box">
+                        <div class="modal-badge mono">HARDWARE & KERNEL ARCHITECTURE</div>
+                        <div class="modal-title">System Parameters & Identity</div>
+                        <div class="modal-subtitle">Operating environment specifications, execution integrity, and host identification.</div>
+                    </div>
+                    <button onclick="closeSystemModal()" class="modal-close-btn" title="Close">✕</button>
+                </div>
+
+                <div class="system-specs-grid mono" id="system-specs-grid"></div>
+
+                <div class="modal-footer">
+                    <div class="system-footer-note mono">
+                        <span>NODE INTEGRITY: MONITORED</span>
+                    </div>
+                    <button onclick="closeSystemModal()" class="btn-secondary">
+                        <span>Close</span>
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <div id="console-overlay" class="console-overlay">
             <div id="audit-console" class="console-panel mono">
