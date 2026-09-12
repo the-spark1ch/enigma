@@ -3,6 +3,7 @@ import sys
 import json
 import time
 import shutil
+import hashlib
 import platform
 import subprocess
 import threading
@@ -36,14 +37,25 @@ def request_elevation():
     if IS_WINDOWS:
         try:
             import ctypes
-            params = subprocess.list2cmdline(sys.argv)
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
-            sys.exit(0)
+            is_frozen = getattr(sys, "frozen", False)
+            if is_frozen:
+                target_bin = sys.executable
+                params = subprocess.list2cmdline(sys.argv[1:])
+                cwd = os.path.dirname(os.path.abspath(sys.executable))
+            else:
+                target_bin = sys.executable
+                params = subprocess.list2cmdline(sys.argv)
+                cwd = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+            ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", target_bin, params, cwd, 1)
+            if int(ret) > 32:
+                sys.exit(0)
+            return False
         except Exception:
             return False
     return False
 
-def get_storage_path() -> str:
+def get_app_storage_dir() -> str:
     if IS_WINDOWS:
         base_dir = os.environ.get("APPDATA")
         if not base_dir:
@@ -55,15 +67,38 @@ def get_storage_path() -> str:
             base_dir = os.path.expanduser("~/.config")
         target_dir = os.path.join(base_dir, "enigma")
     os.makedirs(target_dir, exist_ok=True)
-    return os.path.join(target_dir, "backup_state.json")
+    return target_dir
+
+def get_storage_path() -> str:
+    return os.path.join(get_app_storage_dir(), "backup_state.json")
+
+def get_checksum_path() -> str:
+    return os.path.join(get_app_storage_dir(), "backup_state.json.sha256")
+
+def get_config_path() -> str:
+    return os.path.join(get_app_storage_dir(), "config.json")
+
+def compute_file_sha256(filepath: str) -> Optional[str]:
+    if not os.path.exists(filepath):
+        return None
+    try:
+        hasher = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except Exception:
+        return None
 
 class PrivacyEngineAPI:
     def __init__(self):
         self._lock = threading.Lock()
+        self._restore_point_attempted = False
         self.rules: List[Dict[str, Any]] = self._load_rules()
         self.audit_results: List[Dict[str, Any]] = []
         self.logs: List[str] = []
         self.backup_path = get_storage_path()
+        self.checksum_path = get_checksum_path()
         self.backups: Dict[str, Any] = self._load_backups()
 
     def _load_rules(self) -> List[Dict[str, Any]]:
@@ -78,6 +113,8 @@ class PrivacyEngineAPI:
 
     def _load_backups(self) -> Dict[str, Any]:
         local_fallback = get_resource_path("backup_state.json")
+        bak_file = self.backup_path + ".bak"
+
         if not os.path.exists(self.backup_path) and os.path.exists(local_fallback):
             try:
                 shutil.copy2(local_fallback, self.backup_path)
@@ -85,20 +122,137 @@ class PrivacyEngineAPI:
                 pass
 
         if os.path.exists(self.backup_path):
+            current_hash = compute_file_sha256(self.backup_path)
+
+            if os.path.exists(self.checksum_path):
+                try:
+                    with open(self.checksum_path, "r", encoding="utf-8") as cf:
+                        expected_hash = cf.read().strip()
+                    if current_hash != expected_hash:
+                        self.log("Integrity fault: backup_state.json SHA-256 mismatch detected.")
+                        if os.path.exists(bak_file) and compute_file_sha256(bak_file) == expected_hash:
+                            shutil.copy2(bak_file, self.backup_path)
+                            self.log("State snapshot restored from verified backup replica.")
+                except Exception as e:
+                    self.log(f"Integrity check fault: {e}")
+            else:
+                if current_hash:
+                    try:
+                        with open(self.checksum_path, "w", encoding="utf-8") as cf:
+                            cf.write(current_hash)
+                    except Exception:
+                        pass
+
             try:
                 with open(self.backup_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                self.log(f"Failed to parse state snapshot: {e}")
+                if os.path.exists(bak_file):
+                    try:
+                        with open(bak_file, "r", encoding="utf-8") as bf:
+                            return json.load(bf)
+                    except Exception:
+                        pass
+                return {}
+        return {}
+
+    def _save_backups(self):
+        bak_file = self.backup_path + ".bak"
+        try:
+            with self._lock:
+                tmp_path = self.backup_path + ".tmp"
+                tmp_checksum = self.checksum_path + ".tmp"
+
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(self.backups, f, indent=2, ensure_ascii=False)
+
+                digest = compute_file_sha256(tmp_path)
+                if digest:
+                    with open(tmp_checksum, "w", encoding="utf-8") as cf:
+                        cf.write(digest)
+
+                if os.path.exists(self.backup_path):
+                    shutil.copy2(self.backup_path, bak_file)
+
+                os.replace(tmp_path, self.backup_path)
+                if digest and os.path.exists(tmp_checksum):
+                    os.replace(tmp_checksum, self.checksum_path)
+        except Exception as e:
+            self.log(f"Failed to write state snapshot: {e}")
+
+    def _is_enterprise_edition(self) -> bool:
+        if not IS_WINDOWS:
+            return True
+        raw = self._get_registry_raw("HKEY_LOCAL_MACHINE", "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "EditionID")
+        if raw.get("exists") and raw.get("value"):
+            edition = str(raw["value"]).lower()
+            for kw in ["enterprise", "education", "server", "iot"]:
+                if kw in edition:
+                    return True
+        return False
+
+    def _get_recommended_reg_value(self, entry: Dict[str, Any]) -> Any:
+        if entry.get("value") == "AllowTelemetry":
+            return 0 if self._is_enterprise_edition() else 1
+        return entry.get("recommended")
+
+    def create_restore_point(self, description: str = "Enigma Baseline Snapshot") -> bool:
+        if not IS_WINDOWS or self._restore_point_attempted:
+            return False
+        self._restore_point_attempted = True
+        self.log(f"Generating system restore point: {description}...")
+        try:
+            self._set_windows_registry(
+                "HKEY_LOCAL_MACHINE",
+                "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SystemRestore",
+                "SystemRestorePointCreationFrequency",
+                0,
+                "dword"
+            )
+            cmd = f"Checkpoint-Computer -Description '{description}' -RestorePointType 'MODIFY_SETTINGS'"
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", cmd],
+                creationflags=0x08000000,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=25
+            )
+            if res.returncode == 0:
+                self.log("System restore point generated successfully.")
+                return True
+            else:
+                self.log("System restore point creation skipped or unavailable on this system.")
+                return False
+        except subprocess.TimeoutExpired:
+            self.log("System restore point creation timed out.")
+            return False
+        except Exception as e:
+            self.log(f"System restore point failed: {e}")
+            return False
+
+    def get_config(self) -> Dict[str, Any]:
+        cfg_path = get_config_path()
+        if os.path.exists(cfg_path):
+            try:
+                with open(cfg_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception:
                 return {}
         return {}
 
-    def _save_backups(self):
+    def save_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
+        cfg_path = get_config_path()
         try:
             with self._lock:
-                with open(self.backup_path, "w", encoding="utf-8") as f:
-                    json.dump(self.backups, f, indent=2, ensure_ascii=False)
+                tmp_path = cfg_path + ".tmp"
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, indent=2, ensure_ascii=False)
+                os.replace(tmp_path, cfg_path)
+            return {"success": True}
         except Exception as e:
-            self.log(f"Failed to write state snapshot: {e}")
+            self.log(f"Config write error: {e}")
+            return {"success": False, "error": str(e)}
 
     def log(self, message: str):
         timestamp = time.strftime("%H:%M:%S")
@@ -108,9 +262,44 @@ class PrivacyEngineAPI:
         print(f"[Enigma] {entry}")
 
     def get_system_overview(self) -> Dict[str, Any]:
+        edition = ""
+        build_num = ""
+        display_version = ""
+        if IS_WINDOWS:
+            raw_prod = self._get_registry_raw("HKEY_LOCAL_MACHINE", "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "ProductName")
+            if raw_prod.get("exists"):
+                edition = str(raw_prod["value"])
+            raw_build = self._get_registry_raw("HKEY_LOCAL_MACHINE", "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "CurrentBuild")
+            if raw_build.get("exists"):
+                build_num = str(raw_build["value"])
+            raw_ver = self._get_registry_raw("HKEY_LOCAL_MACHINE", "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "DisplayVersion")
+            if raw_ver.get("exists"):
+                display_version = str(raw_ver["value"])
+
+            try:
+                if build_num and int(build_num) >= 22000:
+                    edition = edition.replace("Windows 10", "Windows 11")
+            except ValueError:
+                pass
+
+        if IS_WINDOWS:
+            try:
+                if build_num and int(build_num) >= 22000:
+                    os_family = "Windows 11"
+                else:
+                    os_family = f"Windows {platform.release()}"
+            except ValueError:
+                os_family = f"{platform.system()} {platform.release()}"
+        else:
+            os_family = f"{platform.system()} {platform.release()}"
+
         return {
-            "os": f"{platform.system()} {platform.release()}",
+            "os": os_family,
+            "edition": edition or os_family,
+            "build": build_num or platform.version(),
+            "display_version": display_version,
             "architecture": platform.machine(),
+            "processor": platform.processor() or os.environ.get("PROCESSOR_IDENTIFIER", "Unknown"),
             "hostname": platform.node(),
             "is_admin": is_admin(),
             "python_version": platform.python_version()
@@ -146,7 +335,7 @@ class PrivacyEngineAPI:
         try:
             import winreg
             hive = getattr(winreg, hive_name)
-            access_flags = winreg.KEY_SET_VALUE | getattr(winreg, "KEY_WOW64_64KEY", 0)
+            access_flags = winreg.KEY_WRITE | getattr(winreg, "KEY_WOW64_64KEY", 0)
             with winreg.CreateKeyEx(hive, subkey, 0, access_flags) as k:
                 v_type = winreg.REG_DWORD if val_type_str == "dword" else winreg.REG_SZ
                 winreg.SetValueEx(k, value_name, 0, v_type, value)
@@ -170,6 +359,79 @@ class PrivacyEngineAPI:
             return True
         except Exception:
             return False
+
+    def _get_netbios_interfaces(self) -> List[str]:
+        if not IS_WINDOWS:
+            return []
+        interfaces = []
+        try:
+            import winreg
+            base_key = r"SYSTEM\CurrentControlSet\Services\NetBT\Parameters\Interfaces"
+            access_flags = winreg.KEY_READ | getattr(winreg, "KEY_WOW64_64KEY", 0)
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base_key, 0, access_flags) as k:
+                idx = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(k, idx)
+                        interfaces.append(subkey_name)
+                        idx += 1
+                    except OSError:
+                        break
+        except Exception:
+            pass
+        return interfaces
+
+    def _check_netbios_disabled(self) -> bool:
+        if not IS_WINDOWS:
+            return True
+        interfaces = self._get_netbios_interfaces()
+        if not interfaces:
+            return True
+        for iface in interfaces:
+            subkey = f"SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces\\{iface}"
+            raw = self._get_registry_raw("HKEY_LOCAL_MACHINE", subkey, "NetbiosOptions")
+            if not raw["exists"] or raw["value"] != 2:
+                return False
+        return True
+
+    def _set_netbios_mode(self, mode: int = 2) -> bool:
+        if not IS_WINDOWS:
+            return False
+        interfaces = self._get_netbios_interfaces()
+        success = True
+        for iface in interfaces:
+            subkey = f"SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces\\{iface}"
+            res = self._set_windows_registry("HKEY_LOCAL_MACHINE", subkey, "NetbiosOptions", mode, "dword")
+            if not res:
+                success = False
+        return success
+
+    def _backup_netbios_state(self) -> List[Dict[str, Any]]:
+        if not IS_WINDOWS:
+            return []
+        records = []
+        interfaces = self._get_netbios_interfaces()
+        for iface in interfaces:
+            subkey = f"SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces\\{iface}"
+            raw = self._get_registry_raw("HKEY_LOCAL_MACHINE", subkey, "NetbiosOptions")
+            records.append({
+                "interface": iface,
+                "prev_exists": raw["exists"],
+                "prev_value": raw["value"],
+                "prev_type": raw["type"]
+            })
+        return records
+
+    def _restore_netbios_state(self, records: List[Dict[str, Any]]):
+        if not IS_WINDOWS:
+            return
+        for rec in records:
+            iface = rec["interface"]
+            subkey = f"SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces\\{iface}"
+            if rec["prev_exists"] and rec["prev_value"] is not None:
+                self._set_windows_registry("HKEY_LOCAL_MACHINE", subkey, "NetbiosOptions", rec["prev_value"], "dword")
+            else:
+                self._delete_windows_registry_value("HKEY_LOCAL_MACHINE", subkey, "NetbiosOptions")
 
     def _check_service_disabled(self, service_name: str) -> bool:
         if not IS_WINDOWS:
@@ -212,6 +474,17 @@ class PrivacyEngineAPI:
             return
         subkey = f"SYSTEM\\CurrentControlSet\\Services\\{service_name}"
         self._set_windows_registry("HKEY_LOCAL_MACHINE", subkey, "Start", start_mode, "dword")
+        if start_mode in (2, 3):
+            try:
+                subprocess.run(
+                    ["sc", "start", service_name],
+                    creationflags=0x08000000,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=5
+                )
+            except Exception:
+                pass
 
     def _check_scheduled_tasks_disabled(self, task_paths: List[str]) -> bool:
         if not IS_WINDOWS:
@@ -266,44 +539,23 @@ class PrivacyEngineAPI:
             except Exception as e:
                 self.log(f"Unable to restore scheduled task {task}: {e}")
 
-    def _check_directory_threshold(self, path_str: str, max_files: int) -> bool:
-        expanded = os.path.expandvars(path_str)
-        if os.path.exists(expanded):
-            try:
-                files = os.listdir(expanded)
-                return len(files) > max_files
-            except Exception:
-                return False
-        return False
-
     def _clean_directory(self, path_str: str):
         expanded = os.path.expandvars(path_str)
         if os.path.exists(expanded):
             try:
-                for item in os.listdir(expanded):
-                    p = os.path.join(expanded, item)
+                items = os.listdir(expanded)
+            except Exception:
+                return
+
+            for item in items:
+                p = os.path.join(expanded, item)
+                try:
                     if os.path.isfile(p) or os.path.islink(p):
                         os.unlink(p)
                     elif os.path.isdir(p):
                         shutil.rmtree(p, ignore_errors=True)
-            except Exception:
-                pass
-
-    def _execute_powershell(self, command: str):
-        if not IS_WINDOWS:
-            return
-        try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
-                creationflags=0x08000000,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=12
-            )
-        except subprocess.TimeoutExpired:
-            self.log("PowerShell script execution timed out")
-        except Exception as e:
-            self.log(f"PowerShell execution fault: {e}")
+                except Exception:
+                    continue
 
     def _evaluate_vulnerability_status(self, issue: Dict[str, Any]) -> bool:
         if not IS_WINDOWS:
@@ -311,8 +563,13 @@ class PrivacyEngineAPI:
 
         if "registry_entries" in issue:
             for entry in issue["registry_entries"]:
-                if not self._check_windows_registry(entry["hive"], entry["key"], entry["value"], entry["recommended"]):
+                expected = self._get_recommended_reg_value(entry)
+                if not self._check_windows_registry(entry["hive"], entry["key"], entry["value"], expected):
                     return True
+
+        if issue.get("netbios_mitigation"):
+            if not self._check_netbios_disabled():
+                return True
 
         if "services" in issue:
             for s in issue["services"]:
@@ -322,11 +579,6 @@ class PrivacyEngineAPI:
         if "tasks" in issue:
             if not self._check_scheduled_tasks_disabled(issue["tasks"]):
                 return True
-
-        if "directory_checks" in issue:
-            for chk in issue["directory_checks"]:
-                if self._check_directory_threshold(chk.get("path", ""), chk.get("max_files", 0)):
-                    return True
 
         return False
 
@@ -376,6 +628,9 @@ class PrivacyEngineAPI:
                     "prev_type": raw["type"]
                 })
 
+        if target.get("netbios_mitigation"):
+            backup_record["netbios"] = self._backup_netbios_state()
+
         if "services" in target:
             for s in target["services"]:
                 start_mode = self._get_service_start_mode(s)
@@ -393,15 +648,22 @@ class PrivacyEngineAPI:
         if not target:
             return {"success": False, "error": "Vector profile not found"}
 
+        if not self._restore_point_attempted:
+            self.create_restore_point("Enigma Pre-Remediation Snapshot")
+
         self.log(f"Hardening vector: {target['title']}")
         self._backup_issue_state(target)
 
         if IS_WINDOWS:
             if "registry_entries" in target:
                 for entry in target["registry_entries"]:
+                    rec_val = self._get_recommended_reg_value(entry)
                     self._set_windows_registry(
-                        entry["hive"], entry["key"], entry["value"], entry["recommended"], entry.get("type", "dword")
+                        entry["hive"], entry["key"], entry["value"], rec_val, entry.get("type", "dword")
                     )
+
+            if target.get("netbios_mitigation"):
+                self._set_netbios_mode(2)
 
             if "services" in target:
                 for s in target["services"]:
@@ -409,10 +671,6 @@ class PrivacyEngineAPI:
 
             if "tasks" in target:
                 self._disable_scheduled_tasks(target["tasks"])
-
-            if "powershell_actions" in target:
-                for cmd in target["powershell_actions"]:
-                    self._execute_powershell(cmd)
 
             if "directory_cleanups" in target:
                 for d in target["directory_cleanups"]:
@@ -466,16 +724,15 @@ class PrivacyEngineAPI:
                 else:
                     self._delete_windows_registry_value(reg["hive"], reg["key"], reg["value"])
 
+            if "netbios" in backup_record:
+                self._restore_netbios_state(backup_record["netbios"])
+
             for svc in backup_record.get("services", []):
                 if svc["prev_start"] is not None:
                     self._restore_service(svc["name"], svc["prev_start"])
 
             if "tasks" in target:
                 self._enable_scheduled_tasks(target["tasks"])
-
-            if "powershell_revert_actions" in target:
-                for cmd in target["powershell_revert_actions"]:
-                    self._execute_powershell(cmd)
 
         is_vuln = self._evaluate_vulnerability_status(target)
         target["status"] = "vulnerable" if is_vuln else "secure"
@@ -500,6 +757,9 @@ class PrivacyEngineAPI:
 
     def fix_all_vulnerabilities(self, issue_ids: List[str]) -> Dict[str, Any]:
         self.log(f"Commencing batch remediation ({len(issue_ids)} vectors)...")
+        if not self._restore_point_attempted:
+            self.create_restore_point("Enigma Batch Remediation Snapshot")
+
         success_count = 0
         for i_id in issue_ids:
             res = self.fix_issue(i_id)
