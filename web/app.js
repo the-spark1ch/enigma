@@ -4,14 +4,20 @@ let selectedIssueIds = new Set();
 let scanCompleted = false;
 let isBusy = false;
 
+let activeProfile = 'balanced';
+let modalSelectedProfile = 'balanced';
+let isRememberedProfile = false;
+let systemOverviewData = null;
+
 window.addEventListener('pywebviewready', async () => {
     initEventDelegation();
     await fetchSystemOverview();
+    await initSecurityProfile();
 });
 
 function setBusy(state) {
     isBusy = state;
-    const appWrapper = document.querySelector('.app-wrapper');
+    const appWrapper = document.getElementById('app-wrapper');
     if (appWrapper) {
         if (state) {
             appWrapper.classList.add('busy-state');
@@ -21,8 +27,12 @@ function setBusy(state) {
     }
     const btnScan = document.getElementById('btn-scan');
     const btnElevate = document.getElementById('btn-elevate');
+    const btnProfile = document.getElementById('btn-profile');
+    const btnSystem = document.getElementById('btn-system');
     if (btnScan) btnScan.disabled = state;
     if (btnElevate) btnElevate.disabled = state;
+    if (btnProfile) btnProfile.disabled = state;
+    if (btnSystem) btnSystem.disabled = state;
     updateFixSelectedButton();
 }
 
@@ -62,19 +72,47 @@ function initEventDelegation() {
         });
     }
 
-    const overlay = document.getElementById('console-overlay');
-    if (overlay) {
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
+    const consoleOverlay = document.getElementById('console-overlay');
+    if (consoleOverlay) {
+        consoleOverlay.addEventListener('click', (e) => {
+            if (e.target === consoleOverlay) {
                 toggleConsole();
+            }
+        });
+    }
+
+    const modalOverlay = document.getElementById('profile-modal-overlay');
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                closeProfileModal();
+            }
+        });
+    }
+
+    const sysModalOverlay = document.getElementById('system-modal-overlay');
+    if (sysModalOverlay) {
+        sysModalOverlay.addEventListener('click', (e) => {
+            if (e.target === sysModalOverlay) {
+                closeSystemModal();
             }
         });
     }
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            const overlay = document.getElementById('console-overlay');
-            if (overlay && overlay.classList.contains('open')) {
+            const sOverlay = document.getElementById('system-modal-overlay');
+            if (sOverlay && sOverlay.classList.contains('open')) {
+                closeSystemModal();
+                return;
+            }
+            const mOverlay = document.getElementById('profile-modal-overlay');
+            if (mOverlay && mOverlay.classList.contains('open')) {
+                closeProfileModal();
+                return;
+            }
+            const cOverlay = document.getElementById('console-overlay');
+            if (cOverlay && cOverlay.classList.contains('open')) {
                 toggleConsole();
             }
         }
@@ -85,6 +123,7 @@ async function fetchSystemOverview() {
     try {
         if (window.pywebview && window.pywebview.api) {
             const info = await window.pywebview.api.get_system_overview();
+            systemOverviewData = info;
             document.getElementById('os-platform').innerText = `${info.hostname} • ${info.os}`;
             if (info.is_admin) {
                 document.getElementById('admin-badge').classList.remove('hidden');
@@ -96,6 +135,174 @@ async function fetchSystemOverview() {
     } catch (err) {
         console.error(err);
     }
+}
+
+function openSystemModal() {
+    if (isBusy || !systemOverviewData) return;
+    const grid = document.getElementById('system-specs-grid');
+    if (!grid) return;
+
+    const info = systemOverviewData;
+    const adminStatusHtml = info.is_admin
+        ? `<span class="spec-value highlight-green">ELEVATED (Administrator)</span>`
+        : `<span class="spec-value highlight-amber">RESTRICTED (Standard Token)</span>`;
+
+    grid.innerHTML = `
+        <div class="spec-card">
+            <div class="spec-label">DEVICE HOSTNAME</div>
+            <div class="spec-value">${escapeHtml(info.hostname)}</div>
+        </div>
+        <div class="spec-card">
+            <div class="spec-label">SECURITY CONTEXT</div>
+            ${adminStatusHtml}
+        </div>
+        <div class="spec-card span-2">
+            <div class="spec-label">OPERATING SYSTEM & EDITION</div>
+            <div class="spec-value">${escapeHtml(info.edition || info.os)} ${info.display_version ? '(' + escapeHtml(info.display_version) + ')' : ''}</div>
+        </div>
+        <div class="spec-card">
+            <div class="spec-label">OS BUILD NUMBER</div>
+            <div class="spec-value">${escapeHtml(info.build)}</div>
+        </div>
+        <div class="spec-card">
+            <div class="spec-label">SYSTEM ARCHITECTURE</div>
+            <div class="spec-value">${escapeHtml(info.architecture)}</div>
+        </div>
+        <div class="spec-card span-2">
+            <div class="spec-label">PROCESSOR RUNTIME IDENTIFIER</div>
+            <div class="spec-value">${escapeHtml(info.processor)}</div>
+        </div>
+        <div class="spec-card span-2">
+            <div class="spec-label">ENIGMA ENGINE EMBEDDED PYTHON</div>
+            <div class="spec-value">CPython ${escapeHtml(info.python_version)} (WebView2 Host)</div>
+        </div>
+    `;
+
+    const overlay = document.getElementById('system-modal-overlay');
+    const wrapper = document.getElementById('app-wrapper');
+    if (overlay) overlay.classList.add('open');
+    if (wrapper) wrapper.classList.add('modal-open');
+}
+
+function closeSystemModal() {
+    const overlay = document.getElementById('system-modal-overlay');
+    const wrapper = document.getElementById('app-wrapper');
+    if (overlay) overlay.classList.remove('open');
+    const pOverlay = document.getElementById('profile-modal-overlay');
+    if (wrapper && (!pOverlay || !pOverlay.classList.contains('open'))) {
+        wrapper.classList.remove('modal-open');
+    }
+}
+
+async function initSecurityProfile() {
+    try {
+        if (window.pywebview && window.pywebview.api) {
+            const cfg = await window.pywebview.api.get_config();
+            if (cfg && cfg.profile && cfg.remember_profile) {
+                activeProfile = cfg.profile;
+                modalSelectedProfile = cfg.profile;
+                isRememberedProfile = true;
+                updateProfileHeaderButton();
+                await triggerScan();
+                applyProfileSelection();
+                return;
+            }
+        }
+    } catch (err) {
+        console.error(err);
+    }
+    openProfileModal();
+}
+
+function updateProfileHeaderButton() {
+    const label = document.getElementById('profile-btn-label');
+    if (label) {
+        label.innerText = `PROFILE: ${activeProfile.toUpperCase()}`;
+    }
+}
+
+function openProfileModal() {
+    if (isBusy) return;
+    modalSelectedProfile = activeProfile;
+    setModalSelectedProfile(modalSelectedProfile);
+
+    const check = document.getElementById('remember-profile-check');
+    if (check) check.checked = isRememberedProfile;
+
+    const overlay = document.getElementById('profile-modal-overlay');
+    const wrapper = document.getElementById('app-wrapper');
+    if (overlay) overlay.classList.add('open');
+    if (wrapper) wrapper.classList.add('modal-open');
+}
+
+function closeProfileModal() {
+    const overlay = document.getElementById('profile-modal-overlay');
+    const wrapper = document.getElementById('app-wrapper');
+    if (overlay) overlay.classList.remove('open');
+    const sOverlay = document.getElementById('system-modal-overlay');
+    if (wrapper && (!sOverlay || !sOverlay.classList.contains('open'))) {
+        wrapper.classList.remove('modal-open');
+    }
+}
+
+function setModalSelectedProfile(profileName) {
+    modalSelectedProfile = profileName;
+    document.querySelectorAll('.profile-card').forEach(card => {
+        if (card.getAttribute('data-profile') === profileName) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+}
+
+async function applyProfileFromModal() {
+    activeProfile = modalSelectedProfile;
+    const check = document.getElementById('remember-profile-check');
+    isRememberedProfile = check ? check.checked : false;
+
+    updateProfileHeaderButton();
+    closeProfileModal();
+
+    try {
+        if (window.pywebview && window.pywebview.api) {
+            await window.pywebview.api.save_config({
+                profile: activeProfile,
+                remember_profile: isRememberedProfile
+            });
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    if (!scanCompleted) {
+        await triggerScan();
+    }
+    applyProfileSelection();
+}
+
+function applyProfileSelection() {
+    selectedIssueIds.clear();
+    const activeThreats = currentIssues.filter(x => x.status === 'vulnerable');
+
+    if (activeProfile === 'balanced') {
+        activeThreats.forEach(item => {
+            if (item.profile === 'balanced') {
+                selectedIssueIds.add(item.id);
+            }
+        });
+        showToast(`Balanced baseline applied: ${selectedIssueIds.size} vectors selected`, "info");
+    } else if (activeProfile === 'maximum') {
+        activeThreats.forEach(item => {
+            selectedIssueIds.add(item.id);
+        });
+        showToast(`Maximum isolation applied: ${selectedIssueIds.size} vectors selected`, "info");
+    } else {
+        showToast("Custom profile active: select desired vectors manually", "info");
+    }
+
+    updateFixSelectedButton();
+    renderIssues();
 }
 
 async function elevatePrivileges() {
@@ -130,7 +337,7 @@ function setHeroStatus(mode, vulnCount = 0, critCount = 0) {
     } else if (mode === 'threats') {
         icon.innerHTML = `<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>`;
         title.innerText = `${vulnCount} Vulnerabilities Detected`;
-        desc.innerText = `Active risk vectors: ${vulnCount} (${critCount} critical severity). Enforcing security policies is strongly advised.`;
+        desc.innerText = `Active risk vectors: ${vulnCount} (${critCount} critical severity). Active baseline: ${activeProfile.toUpperCase()}.`;
     } else if (mode === 'secure') {
         icon.innerHTML = `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>`;
         title.innerText = "System Fortified";
@@ -201,14 +408,23 @@ function toggleSelect(id) {
 function selectAllVulnerable() {
     if (isBusy) return;
     const activeThreats = currentIssues.filter(x => x.status === 'vulnerable');
-    activeThreats.forEach(item => {
-        selectedIssueIds.add(item.id);
-    });
-    updateFixSelectedButton();
-    renderIssues();
-    if (activeThreats.length > 0) {
+
+    if (activeProfile === 'balanced') {
+        activeThreats.forEach(item => {
+            if (item.profile === 'balanced') {
+                selectedIssueIds.add(item.id);
+            }
+        });
+        showToast(`Selected ${selectedIssueIds.size} Balanced vectors`, "info");
+    } else {
+        activeThreats.forEach(item => {
+            selectedIssueIds.add(item.id);
+        });
         showToast(`Selected ${selectedIssueIds.size} vulnerable vectors`, "info");
     }
+
+    updateFixSelectedButton();
+    renderIssues();
 }
 
 function updateFixSelectedButton() {
